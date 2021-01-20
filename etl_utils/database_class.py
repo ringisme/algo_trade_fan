@@ -56,7 +56,6 @@ class RemoteDatabase:
         except:
             print("No stack found in database.")
             self.stack_list = list()
-        print(self.stack_list)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

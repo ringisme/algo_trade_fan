@@ -136,12 +136,12 @@ def main_process(symbol, db_table):
     # Check whether the data is up to date:
     if last_time.strftime('%Y-%m-%d') == current_time.strftime('%Y-%m-%d'):
         if db_table.tb_name == RDS_CONFIG['DAILY_TABLE']:
-            print(" | {} is up to daily date.".format(symbol))
+            # print(" | {} is up to daily date.".format(symbol))
             return None
         elif db_table.tb_name == RDS_CONFIG['INTRADAY_TABLE']:
             gap_duration = (last_time-current_time).total_seconds()
             if gap_duration/3600 <= 2:
-                print(" | {} is up to intraday date.".format(symbol))
+                # print(" | {} is up to intraday date.".format(symbol))
                 return None
             else:
                 ext_df = extract_intraday(symbol, last_time, current_time)
