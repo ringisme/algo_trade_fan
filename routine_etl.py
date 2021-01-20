@@ -27,8 +27,9 @@ if __name__ == '__main__':
     # executor = ThreadPoolExecutor(max_workers=2)
     #task_1 = executor.submit(routine_daily)
     #task_2 = executor.submit(routine_intraday)
-    #routine_process(RDS_CONFIG['DAILY_TABLE'])
-    routine_process(RDS_CONFIG['INTRADAY_TABLE'])
+    # routine_process(RDS_CONFIG['INTRADAY_TABLE'])
+    routine_process(RDS_CONFIG["INTRADAY_TABLE"])
+
 
 """
     with etl.connect_table(RDS_CONFIG["DAILY_TABLE"]) as db_table:
@@ -39,4 +40,6 @@ if __name__ == '__main__':
         
     with etl.connect_table(RDS_CONFIG["INTRADAY_TABLE"]) as db_table:
         etl.main_process('CIG', db_table)
+    
+    etl.main_process('CCXX', db_table)
 """

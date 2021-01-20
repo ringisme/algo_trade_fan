@@ -7,3 +7,5 @@ Desktop.ini
 *.env
 sec_list_1000.csv
 test*.py
+tmp_dataframe.csv
+

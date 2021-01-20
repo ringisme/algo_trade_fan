@@ -124,14 +124,14 @@ def main_process(symbol, db_table):
     if db_table.tb_name not in [RDS_CONFIG['DAILY_TABLE'], RDS_CONFIG['INTRADAY_TABLE']]:
         raise Exception("Sorry, the ETL process cannot support this table.")
     current_time = datetime.today().astimezone(timezone.utc)
-    last_time = db_table.last_time(symbol)  # Get the latest update time:
     # ----- STEP 1 -----
-    if last_time is None:  # if no data returned, the stack is not in the database, need to download all data
+    if symbol not in db_table.stack_list:
         print(" | {} not in table, will be reloaded".format(symbol))
         etl_reload(symbol, db_table, current_time)
         return None
     # ----- STEP 2 -----
     # if the stack has already recorded in database, check the latest datetime:
+    last_time = db_table.last_time(symbol)
     last_time = last_time.astimezone(timezone.utc)
     # Check whether the data is up to date:
     if last_time.strftime('%Y-%m-%d') == current_time.strftime('%Y-%m-%d'):

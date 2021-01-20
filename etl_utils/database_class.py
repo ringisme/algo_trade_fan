@@ -7,7 +7,7 @@ import pandas as pd
 import psycopg2
 from datetime import datetime
 from sqlalchemy import create_engine, MetaData, Column, String, Float, DateTime, Integer, BigInteger, Date
-from sqlalchemy import select, func, delete, Table
+from sqlalchemy import select, func, delete, Table, distinct
 from etl_utils.etl_config import RDS_CONFIG
 
 
@@ -51,11 +51,33 @@ class RemoteDatabase:
                                        password=self.password,
                                        host=self.endpoint,
                                        port=RDS_CONFIG["PORT"])
+        try:
+            self.stack_list = self.stack_list()['symbol'].values.tolist()
+        except:
+            print("No stack found in database.")
+            self.stack_list = list()
+        print(self.stack_list)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.connection.close()
         self.up_con.close()
+
+    def stack_list(self):
+        """
+        This method is to pre-load the existed stack list for checking new stacks.
+
+        :return: (DataFrame)
+        """
+        print("Preparing Stack List ... ")
+        # Create statement
+        stmt = select([distinct(self.current_table.columns.symbol)])
+        # Fetch the data
+        result = self.connection.execute(stmt).fetchall()
+        result = pd.DataFrame(result)
+        if not result.empty:
+            result.columns = ['symbol']
+        return result
 
     def create_table(self):
         """
