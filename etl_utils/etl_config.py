@@ -1,0 +1,37 @@
+import os
+from os.path import join, dirname
+from dateutil import tz
+from dotenv import load_dotenv
+
+# Automatically find .env file and load.
+env_path = join(dirname(__file__), 'etl_info.env')
+print(env_path)
+load_dotenv(env_path)
+
+# Load RDS information:
+RDS_CONFIG = {
+    "USERNAME": os.getenv("RDS_USER"),
+    "PASSWORD": os.getenv("RDS_PASSWORD"),
+    "HOST": os.getenv("RDS_HOST"),
+    "DATABASE": os.getenv("RDS_DATABASE"),
+    "NAME": os.getenv("RDS_NAME"),
+    "PORT": os.getenv("RDS_PORT"),
+    # ----- CUSTOM PART -----
+    "DAILY_TABLE": 'daily_raw',
+    "INTRADAY_TABLE": 'intraday_raw',
+    "SPLIT_TABLE": 'split_ref',
+    "CHUNK_SIZE": 10000
+}
+
+# Load Finnhub information:
+FINNHUB_CONFIG = {
+    "API_KEY": os.getenv("FINNHUB_API_KEY"),
+    # ----- CUSTOM PART -----
+    "API_LIMIT": 1.1,  # control how long time that the API can be used again.
+    "INTRADAY_LIMIT": '30D'  # Finnhub limits the intraday data return period as 30 days.
+}
+
+# Set user information:
+USER_CUSTOM = {
+    "TIMEZONE": tz.gettz("Canada/Toronto")
+}
