@@ -12,11 +12,12 @@ from stack_info import STACK_LIST
 
 def routine_process(table_name):
     with etl.connect_table(table_name) as db_table:
+        stack_list = db_table.stack_list()
         # Build process bar to estimate the routine executing time:
         t_stack_list = tqdm(STACK_LIST["name"])
         for stack in t_stack_list:
             t_stack_list.set_description(stack)
-            etl.main_process(stack, db_table)
+            etl.main_process(stack, db_table, stack_list)
 
 
 if __name__ == '__main__':
@@ -34,6 +35,7 @@ if __name__ == '__main__':
         alert_info = "Because of {}, the {} was interrupted on {}.".format(e.__class__,
                                                                            RDS_CONFIG["INTRADAY_TABLE"],
                                                                            process_end_time)
+
         message = client.messages.create(from_=TWILIO_CONFIG["TWILIO_PHONE"],
                                          to=TWILIO_CONFIG["USER_PHONE"],
                                          body=alert_info)

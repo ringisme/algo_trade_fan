@@ -29,7 +29,7 @@ RDS_CONFIG = {
 FINNHUB_CONFIG = {
     "API_KEY": os.getenv("FINNHUB_API_KEY"),
     # ----- CUSTOM PART -----
-    "API_LIMIT": 1.1,  # control how long time that the API can be used again.
+    "API_LIMIT": 1.25,  # control how long time that the API can be used again.
     "INTRADAY_LIMIT": '30D'  # Finnhub limits the intraday data return period as 30 days.
 }
 
@@ -43,5 +43,6 @@ TWILIO_CONFIG = {
 
 # Set user information:
 USER_CUSTOM = {
-    "TIMEZONE": tz.gettz("Canada/Toronto")
+    "TIMEZONE": tz.gettz("Canada/Toronto"),
+    "CHECK_HOUR": 0  # How many hours later to check the intraday data
 }

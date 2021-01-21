@@ -134,7 +134,7 @@ def extract_splits(symbol, dt_start, dt_end):
                         'your request cannot be finished.'.format(symbol, e.__class__))
 
 
-def extract_intraday(symbol, dt_start, dt_end):
+def extract_intraday(symbol, dt_start, dt_end, db_table, upload=True):
     """
     Extract intraday candles data from Finnhub. Because the Finnhub API doesn't support to extract intraday data
     has a period longer than 30 days, this function will divide the period into months and combine the result
@@ -143,6 +143,8 @@ def extract_intraday(symbol, dt_start, dt_end):
     :param symbol: (str) Stack abbreviation
     :param dt_start: (datetime)
     :param dt_end: (datetime)
+    :param db_table: (RemoteDatabase)
+    :param upload: (boolean) Decide if to upload result directly
     :return: (DataFrame) empty dataframe if false to download
     """
     # Create the time sequence that has a period of 30 days:
@@ -156,9 +158,15 @@ def extract_intraday(symbol, dt_start, dt_end):
     # Extract candles data from Finnhub:
     res_df = pd.DataFrame()
     # Build an interface to Visualize the extracting process
+    total_period = len(times) - 1
     for i in range(len(times) - 1):
+        print("Creating time series {} of {} for {}".format(i, total_period, symbol))
         # print("extracting {} to {}".format(times[i], times[i + 1]))
         res = extract_candles(symbol, dt_start=times[i], dt_end=times[i + 1], resolution='1')
         if not res.empty:
             res_df = res_df.append(res)
+            # Decide if to upload directly
+            if upload:
+                db_table.update_dataframe(res)
+
     return res_df

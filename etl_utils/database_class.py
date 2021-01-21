@@ -6,8 +6,7 @@ as well as store modification functions to manage the database
 import pandas as pd
 import psycopg2
 from datetime import datetime
-from sqlalchemy import create_engine, MetaData, Column, String, Float, DateTime, Integer, BigInteger, Date
-from sqlalchemy import select, func, delete, Table, distinct
+from sqlalchemy import create_engine, MetaData, Column, String, Float, DateTime, Integer, BigInteger, Date, Table
 from etl_utils.etl_config import RDS_CONFIG
 
 
@@ -22,16 +21,12 @@ class RemoteDatabase:
         self.password = password
         self.endpoint = endpoint
         self.db_name = db_name
-        self.engine = create_engine('postgresql+psycopg2://{0}:{1}@{2}:{3}/{4}'.format(user_name,
-                                                                                       password,
-                                                                                       endpoint,
-                                                                                       RDS_CONFIG["PORT"],
-                                                                                       db_name),
-                                    pool_pre_ping=True, pool_use_lifo=True)
+        DB_URL = 'postgresql+psycopg2://{0}:{1}@{2}:{3}/{4}'.format(user_name, password, endpoint,
+                                                                    RDS_CONFIG["PORT"], db_name)
+        self.engine = create_engine(DB_URL)
         self.metadata = MetaData(self.engine)
         # check if the table exists:
         if self.tb_name in self.engine.table_names():
-            # Load the table:
             self.current_table = Table(self.tb_name, self.metadata, autoload=True)
         # if no such table, ask to create:
         else:
@@ -43,16 +38,10 @@ class RemoteDatabase:
                 raise Exception("You have to create a table before access.")
 
     def __enter__(self):
-        self.connection = self.engine.connect()
-        try:
-            self.stack_list = self.stack_list()['symbol'].values.tolist()
-        except:
-            print("No stack found in database.")
-            self.stack_list = list()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.connection.close()
+        pass
 
     def stack_list(self):
         """
@@ -61,20 +50,17 @@ class RemoteDatabase:
         :return: (DataFrame)
         """
         print("Preparing Stack List ... ")
-        # Create statement
-        stmt = select([distinct(self.current_table.columns.symbol)])
-        # Fetch the data
-        result = self.connection.execute(stmt).fetchall()
-        result = pd.DataFrame(result)
-        if not result.empty:
-            result.columns = ['symbol']
-        return result
+        with self.engine.connect() as con:
+            rs = con.execute('SELECT symbol, max(timestamp) as last_time FROM {} GROUP BY symbol' \
+                             .format(self.tb_name)).fetchall()
+            rs = pd.DataFrame(rs)
+            rs.columns = ['symbol', 'last_time']
+            return rs
 
     def create_table(self):
         """
         Build three main tables to save 'daily' candles, 'intraday minute level' candles, and 'splits' information.
         """
-        self.metadata = MetaData(self.engine)
         if self.tb_name in self.engine.table_names():
             print("The table [{}] has already been created, please drop it at first.".format(self.tb_name))
             return None
@@ -101,10 +87,7 @@ class RemoteDatabase:
                                        Column('source', String(255))
                                        )
         else:
-            print("An empty table [{}] wil be created.".format(self.tb_name))
-            # To create tables, it must contains at least one columns.
-            self.current_table = Table(self.tb_name, self.metadata,
-                                       Column('col', String(255), primary_key=True))
+            print("Sorry we cannot create the table {}.".format(self.tb_name))
         # Build the table:
         self.metadata.create_all(self.engine)
         # To check if the table is successful created:
@@ -145,34 +128,23 @@ class RemoteDatabase:
             up_con.rollback()
             cursor.close()
             up_con.close()
-            return 1
+            return None
 
-    def get_candles(self, symbol, dt_start=None, dt_end=None):
+    def get_volume(self, symbol, dt_select):
         """
         Return the selected candles records by conditions.
 
         :param symbol: (str) Stack abbreviation
-        :param dt_start: (datetime)
-        :param dt_end: (datetime)
-        :return: (DataFrame)
+        :param dt_select: (datetime)
+        :return: (Integer) The corresponding volume
         """
-        # build statement
-        stmt = select([self.current_table])
-        # Add conditions
-        if symbol is not None:
-            stmt = stmt.where(self.current_table.columns.symbol == symbol)
-        if dt_start is not None:
-            stmt = stmt.where(self.current_table.columns.timestamp >= dt_start)
-        if dt_end is not None:
-            stmt = stmt.where(self.current_table.columns.timestamp <= dt_end)
         # Get all result
-        result = self.connection.execute(stmt).fetchall()
-        result = pd.DataFrame(result)
-        # Check if the result contains data:
-        if not result.empty:
-            result.columns = ['close_price', 'high_price', 'low_price', 'open_price',
-                              'status', 'timestamp', 'volume', 'symbol']
-        return result
+        with self.engine.connect() as con:
+            query = "SELECT volume FROM {} WHERE symbol = '{}' and timestamp = '{}'" \
+                .format(self.tb_name, symbol,
+                        dt_select.strftime("%Y-%m-%d %H:%M:%S"))
+            rs = con.execute(query).scalar()
+            return rs
 
     def split_info(self, symbol, from_date, to_date):
         """
@@ -187,37 +159,15 @@ class RemoteDatabase:
             split_tb = Table(RDS_CONFIG["SPLIT_TABLE"], self.metadata, autoload=True)
         except Exception as e:
             raise Exception('Please create "split_raw" table at first.')
-        # build statement
-        stmt = select([split_tb])
-        # Add conditions
-        if symbol is not None:
-            stmt = stmt.where(split_tb.columns.symbol == symbol)
-        if from_date is not None:
-            stmt = stmt.where(split_tb.columns.date >= from_date)
-        if to_date is not None:
-            stmt = stmt.where(split_tb.columns.date <= to_date)
-        # Get all result
-        result = self.connection.execute(stmt).fetchall()
-        result = pd.DataFrame(result)
-        # Check if the result contains data:
-        if not result.empty:
-            result.columns = ['symbol', 'date', 'fromFactor', 'toFactor', 'source']
-        return result
-
-    def last_time(self, symbol):
-        """
-        This method returns the latest update datetime of the stack.
-
-        :param symbol:(str) The stack abbreviation
-        :return: (datetime) in UTC
-        """
-        # Create statement
-        stmt = select([func.max(self.current_table.columns.timestamp)])
-        # Filter the data by stack name
-        stmt = stmt.where(self.current_table.columns.symbol == symbol)
-        # Fetch the data
-        result = self.connection.execute(stmt).scalar()
-        return result
+        with self.engine.connect() as con:
+            query = "SELECT * FROM {} WHERE symbol = '{}' and date BETWEEN '{}' and '{}';" \
+                .format(split_tb, symbol,
+                        from_date.strftime("%Y-%m-%d"),
+                        to_date.strftime("%Y-%m-%d"))
+            rs = con.execute(query).fetchall()
+            rs = pd.DataFrame(rs)
+            rs.columns = ['symbol', 'date', 'fromFactor', 'toFactor', 'source']
+            return rs
 
     def delete_stack(self, symbol):
         """
@@ -226,20 +176,8 @@ class RemoteDatabase:
         :param symbol: (str) Stack abbreviation
         :return: None. Only process operations in database.
         """
-        # Count the row number pending to delete:
-        count_stmt = select([func.count(self.current_table.columns.symbol)]).where(
-            self.current_table.columns.symbol == symbol
-        )
-        to_delete = self.connection.execute(count_stmt).scalar()
-        if to_delete == 0:
-            return None
-        else:
-            delete_stmt = delete(self.current_table).where(
-                self.current_table.columns.symbol == symbol)
-            # Execute the statement
-            deleted_num = self.connection.execute(delete_stmt).rowcount
-            if deleted_num == to_delete:
-                print('The records of stack [{}] have been deleted from [{}]'.format(symbol, self.tb_name))
-                return None
-            else:
-                raise Exception("The delete numbers are not match when deleting {}".format(symbol))
+        print("Delete all records of {} from {}".format(symbol, self.tb_name))
+        with self.engine.connect() as con:
+            query = "DELETE FROM {} WHERE symbol = '{}'".format(self.tb_name, symbol)
+            res = con.execute(query)
+            print("{} rows has been deleted.".format(res.rowcount))
