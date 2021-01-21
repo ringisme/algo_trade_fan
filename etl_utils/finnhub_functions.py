@@ -73,7 +73,7 @@ def extract_candles(symbol, dt_start, dt_end, resolution='D'):
                                            convert_datetime(dt_start),
                                            convert_datetime(dt_end))
     except Exception as e:
-        print('Sorry, when extract {0}, because of {1}, '
+        print('Sorry, when extract {0} candles, because of {1}, '
               'your request cannot be finished.'.format(symbol, e.__class__))
         return pd.DataFrame()
     else:
@@ -130,7 +130,7 @@ def extract_splits(symbol, dt_start, dt_end):
         df['source'] = 'api'
         return df
     except Exception as e:
-        raise Exception('Sorry, when extract {0}, because of {1}, '
+        raise Exception('Sorry, when extract {0} splits, because of {1}, '
                         'your request cannot be finished.'.format(symbol, e.__class__))
 
 
