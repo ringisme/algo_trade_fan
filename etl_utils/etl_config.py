@@ -22,7 +22,7 @@ RDS_CONFIG = {
     "DAILY_TABLE": 'daily_raw',
     "INTRADAY_TABLE": 'intraday_raw',
     "SPLIT_TABLE": 'split_ref',
-    "CHUNK_SIZE": 10000
+    "CHUNK_SIZE": 100000
 }
 
 # Load Finnhub information:

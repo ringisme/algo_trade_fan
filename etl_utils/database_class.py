@@ -27,8 +27,7 @@ class RemoteDatabase:
                                                                                        endpoint,
                                                                                        RDS_CONFIG["PORT"],
                                                                                        db_name),
-                                    pool_pre_ping=True, pool_size=10, max_overflow=2, pool_recycle=300,
-                                    pool_use_lifo=True)
+                                    pool_pre_ping=True, pool_use_lifo=True)
         self.metadata = MetaData(self.engine)
         # check if the table exists:
         if self.tb_name in self.engine.table_names():
@@ -54,7 +53,6 @@ class RemoteDatabase:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.connection.close()
-        self.up_con.close()
 
     def stack_list(self):
         """
@@ -127,15 +125,12 @@ class RemoteDatabase:
         :return: None. Only process operations in database.
         """
         # build the connection to bulk insert data.
-        up_con = psycopg2.connect(database=self.db_name,
-                                  user=self.user_name,
-                                  password=self.password,
-                                  host=self.endpoint,
-                                  port=RDS_CONFIG["PORT"])
         if df.empty:
             print("Nothing to upload.")
             return None
-        # print("----- UPDATING TO [{}] -----".format(self.tb_name))
+        # Build Bulk insert connection to upload:
+        up_con = psycopg2.connect(database=self.db_name, user=self.user_name,
+                                  password=self.password, host=self.endpoint, port=RDS_CONFIG["PORT"])
         tmp_df = "./tmp_dataframe.csv"
         df.to_csv(tmp_df, index=False, header=False)
         f = open(tmp_df, 'r')
@@ -143,13 +138,14 @@ class RemoteDatabase:
         try:
             cursor.copy_from(f, self.tb_name, sep=",", size=RDS_CONFIG["CHUNK_SIZE"])
             up_con.commit()
+            cursor.close()
+            up_con.close()
         except (Exception, psycopg2.DatabaseError) as error:
             print("Error: %s" % error)
             up_con.rollback()
             cursor.close()
+            up_con.close()
             return 1
-        # print("------ [{}] UPDATED ------".format(self.tb_name))
-        cursor.close()
 
     def get_candles(self, symbol, dt_start=None, dt_end=None):
         """

@@ -9,6 +9,7 @@ More tutorial please refer to 'README.md'
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 
+from stack_info import STACK_NO_DATA, check_path
 from etl_utils.database_class import RemoteDatabase
 from etl_utils.finnhub_functions import extract_candles, extract_splits, extract_intraday
 from etl_utils.etl_config import RDS_CONFIG
@@ -109,7 +110,12 @@ def etl_reload(symbol, db_table, current_time):
         stack_hist_df = extract_intraday(symbol, current_time - timedelta(days=365), current_time)
     else:
         raise Exception("The selected table is not in database. Please check the name.")
-    db_table.update_dataframe(stack_hist_df)
+    if not stack_hist_df.empty:
+        db_table.update_dataframe(stack_hist_df)
+    else:
+        print("Extracted no data when reload.")
+        STACK_NO_DATA.append(pd.DataFrame({'symbol': symbol}, index=[0]))
+        STACK_NO_DATA.to_csv(check_path)
     return None
 
 
@@ -126,9 +132,14 @@ def main_process(symbol, db_table):
     current_time = datetime.today().astimezone(timezone.utc)
     # ----- STEP 1 -----
     if symbol not in db_table.stack_list:
-        print(" | {} not in table, will be reloaded".format(symbol))
-        etl_reload(symbol, db_table, current_time)
-        return None
+        # To check if the data has no intraday data:
+        if db_table.tb_name == RDS_CONFIG["INTRADAY_TABLE"] \
+                and symbol in STACK_NO_DATA["symbol"].values.tolist():
+            return None
+        else:
+            print(" | {} not in table, will be reloaded".format(symbol))
+            etl_reload(symbol, db_table, current_time)
+            return None
     # ----- STEP 2 -----
     # if the stack has already recorded in database, check the latest datetime:
     last_time = db_table.last_time(symbol)
@@ -139,8 +150,8 @@ def main_process(symbol, db_table):
             # print(" | {} is up to daily date.".format(symbol))
             return None
         elif db_table.tb_name == RDS_CONFIG['INTRADAY_TABLE']:
-            gap_duration = (last_time-current_time).total_seconds()
-            if gap_duration/3600 <= 2:
+            gap_duration = (last_time - current_time).total_seconds()
+            if gap_duration / 3600 <= 2:
                 # print(" | {} is up to intraday date.".format(symbol))
                 return None
             else:
