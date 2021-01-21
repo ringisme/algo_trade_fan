@@ -1,5 +1,7 @@
 import os
 from os.path import join, dirname
+from typing import Optional, Dict
+
 from dateutil import tz
 from dotenv import load_dotenv
 
@@ -29,6 +31,14 @@ FINNHUB_CONFIG = {
     # ----- CUSTOM PART -----
     "API_LIMIT": 1.1,  # control how long time that the API can be used again.
     "INTRADAY_LIMIT": '30D'  # Finnhub limits the intraday data return period as 30 days.
+}
+
+# Load the Twilio information:
+TWILIO_CONFIG = {
+    "ACCOUNT_SID": os.getenv("TWILIO_ACCOUNT_SID"),
+    "AUTH_TOKEN": os.getenv("TWILIO_AUTH_TOKEN"),
+    "TWILIO_PHONE": os.getenv("TWILIO_PHONE"),
+    "USER_PHONE": os.getenv("USER_PHONE")
 }
 
 # Set user information:

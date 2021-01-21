@@ -9,3 +9,6 @@ sec_list_1000.csv
 test*.py
 tmp_dataframe.csv
 
+
+# System:
+*__pycache__/

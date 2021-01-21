@@ -45,12 +45,6 @@ class RemoteDatabase:
 
     def __enter__(self):
         self.connection = self.engine.connect()
-        # build the connection to bulk insert data.
-        self.up_con = psycopg2.connect(database=self.db_name,
-                                       user=self.user_name,
-                                       password=self.password,
-                                       host=self.endpoint,
-                                       port=RDS_CONFIG["PORT"])
         try:
             self.stack_list = self.stack_list()['symbol'].values.tolist()
         except:
@@ -132,6 +126,12 @@ class RemoteDatabase:
         :param df: (DataFrame)
         :return: None. Only process operations in database.
         """
+        # build the connection to bulk insert data.
+        up_con = psycopg2.connect(database=self.db_name,
+                                  user=self.user_name,
+                                  password=self.password,
+                                  host=self.endpoint,
+                                  port=RDS_CONFIG["PORT"])
         if df.empty:
             print("Nothing to upload.")
             return None
@@ -139,13 +139,13 @@ class RemoteDatabase:
         tmp_df = "./tmp_dataframe.csv"
         df.to_csv(tmp_df, index=False, header=False)
         f = open(tmp_df, 'r')
-        cursor = self.up_con.cursor()
+        cursor = up_con.cursor()
         try:
             cursor.copy_from(f, self.tb_name, sep=",", size=RDS_CONFIG["CHUNK_SIZE"])
-            self.up_con.commit()
+            up_con.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             print("Error: %s" % error)
-            self.up_con.rollback()
+            up_con.rollback()
             cursor.close()
             return 1
         # print("------ [{}] UPDATED ------".format(self.tb_name))
