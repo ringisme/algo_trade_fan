@@ -16,11 +16,8 @@ class RemoteDatabase:
     """
 
     def __init__(self, tb_name, user_name, password, endpoint, db_name=RDS_CONFIG["DATABASE"]):
-        self.tb_name = tb_name
-        self.user_name = user_name
-        self.password = password
-        self.endpoint = endpoint
-        self.db_name = db_name
+        self.tb_name, self.user_name, self.password, self.endpoint, self.db_name = \
+            tb_name, user_name, password, endpoint, db_name
         DB_URL = 'postgresql+psycopg2://{0}:{1}@{2}:{3}/{4}'.format(user_name, password, endpoint,
                                                                     RDS_CONFIG["PORT"], db_name)
         self.engine = create_engine(DB_URL)
@@ -28,8 +25,7 @@ class RemoteDatabase:
         # check if the table exists:
         if self.tb_name in self.engine.table_names():
             self.current_table = Table(self.tb_name, self.metadata, autoload=True)
-        # if no such table, ask to create:
-        else:
+        else:  # if no such table, ask to create:
             print('The accessing table do not exists')
             build_tb = input('input "yes" to create [{}]: '.format(self.tb_name))
             if build_tb == "yes":
@@ -41,6 +37,7 @@ class RemoteDatabase:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        # No connection build during the process
         pass
 
     def stack_list(self):
@@ -49,15 +46,19 @@ class RemoteDatabase:
 
         :return: (DataFrame)
         """
-        print("Preparing Stack List ... ")
+        print("Preparing Stack List of {}... ".format(self.tb_name))
         with self.engine.connect() as con:
-            rs = con.execute('SELECT symbol, max(timestamp) as last_time FROM {} GROUP BY symbol' \
-                             .format(self.tb_name)).fetchall()
+            sql_query = "SELECT a.symbol, a.last_time, b.volume FROM " \
+                        "(SELECT symbol, MAX(timestamp) AS last_time FROM {t} GROUP BY symbol) a " \
+                        "LEFT JOIN " \
+                        "(SELECT symbol, timestamp, volume FROM {t}) b " \
+                        "ON a.last_time = b.timestamp AND a.symbol = b.symbol".format(t=self.tb_name)
+            rs = con.execute(sql_query).fetchall()
             rs = pd.DataFrame(rs)
-            rs.columns = ['symbol', 'last_time']
+            rs.columns = ['symbol', 'last_time', 'volume']
             return rs
 
-    def create_table(self):
+    def _create_table(self):
         """
         Build three main tables to save 'daily' candles, 'intraday minute level' candles, and 'splits' information.
         """
@@ -84,20 +85,24 @@ class RemoteDatabase:
                                        Column('date', Date(), primary_key=True),
                                        Column('fromFactor', Integer()),
                                        Column('toFactor', Integer()),
-                                       Column('source', String(255))
-                                       )
+                                       Column('source', String(255)))
         else:
-            print("Sorry we cannot create the table {}.".format(self.tb_name))
+            print("Sorry creating table {} is not supported for now.".format(self.tb_name))
         # Build the table:
         self.metadata.create_all(self.engine)
         # To check if the table is successful created:
         print("----- TABLE [{}] CREATED -----".format(self.tb_name))
 
     def info(self):
-        print("----- COLUMNS INFO -----")
+        """
+        Print out the database column information.
+        """
         print(self.current_table.columns.keys())
 
-    def drop_table(self):
+    def _drop_table(self):
+        """
+        Drop the current table.
+        """
         print("----- DROP TABLE [{}] -----".format(self.tb_name))
         self.current_table.drop(self.engine)
         print("----- TABLE [{}] DOPED -----".format(self.tb_name))
@@ -130,7 +135,7 @@ class RemoteDatabase:
             up_con.close()
             return None
 
-    def get_volume(self, symbol, dt_select):
+    def _get_volume(self, symbol, dt_select):
         """
         Return the selected candles records by conditions.
 

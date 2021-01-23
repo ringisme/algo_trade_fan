@@ -44,5 +44,7 @@ TWILIO_CONFIG = {
 # Set user information:
 USER_CUSTOM = {
     "TIMEZONE": tz.gettz("Canada/Toronto"),
-    "CHECK_HOUR": 0  # How many hours later to check the intraday data
+    "CHECK_HOUR": 1,  # How many hours later to check the intraday data
+    "POSTPONE": 24,  # How long time delayed to extract data from Finnhub to avoid inconsistent data
+    "T_LEVEL": 0.005  # Tolerance level to the inconsistent data
 }
