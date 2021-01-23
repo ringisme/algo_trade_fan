@@ -60,7 +60,9 @@ def etl_compare(symbol, db_table, db_vol, last_time, current_time):
     else:
         api_vol = api_vol.iloc[0]
     # Check if the volumes matched:
-    if abs((api_vol-db_vol)/db_vol) <= USER_CUSTOM["T_LEVEL"]:
+    if abs((api_vol-db_vol)/db_vol) <= USER_CUSTOM["T_LEVEL"] or \
+            api_vol == db_vol or \
+            abs(api_vol-db_vol) < USER_CUSTOM["T_NUMBER"]:
         ext_df = ext_df[ext_df.timestamp != last_time]
         if not ext_df.empty:
             db_table.update_dataframe(ext_df)  # Matched, upload the rest data

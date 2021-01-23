@@ -28,10 +28,11 @@ def etl_main_process(table_name):
             etl.main_process(stack, db_table, stack_list)
 
 
-def routine_process(phone_alert=False, email_alert=False):
+def routine_process(phone_alert=False, multi_process=False):
     """
     The routine process to update the newest stack data to database automatically.
 
+    :param multi_process:
     :param table_name: (str) Database default table name
     :param alert: (boolean) set True to send Error message to assigned phone number
     :return: None
@@ -43,15 +44,19 @@ def routine_process(phone_alert=False, email_alert=False):
     client = Client(account_sid, auth_token)
 
     try:
-        # Set the multiply threads:
-        executor = ThreadPoolExecutor(max_workers=2)
-        task_1 = executor.submit(etl_main_process, RDS_CONFIG["DAILY_TABLE"])
-        task_2 = executor.submit(etl_main_process, RDS_CONFIG["INTRADAY_TABLE"])
-        all_task = [task_1, task_2]
-        for task in as_completed(all_task):
-            print(task.result())
-            end_time = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-            print("Routine task starts from {}, successful finished at {}.".format(start_time, end_time))
+        if multi_process:
+            # Set the multiply threads:
+            executor = ThreadPoolExecutor(max_workers=2)
+            task_1 = executor.submit(etl_main_process, RDS_CONFIG["DAILY_TABLE"])
+            task_2 = executor.submit(etl_main_process, RDS_CONFIG["INTRADAY_TABLE"])
+            all_task = [task_1, task_2]
+            for task in as_completed(all_task):
+                print(task.result())
+        else:
+            etl_main_process(RDS_CONFIG["DAILY_TABLE"])
+            etl_main_process(RDS_CONFIG["INTRADAY_TABLE"])
+        end_time = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+        print("Routine task starts from {}, successful finished at {}.".format(start_time, end_time))
     except Exception as e:
         end_time = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
         alert_info = "Because of {}, the {} was interrupted on {}.".format(e.__class__,
