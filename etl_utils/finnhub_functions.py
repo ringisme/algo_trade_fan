@@ -7,7 +7,8 @@ import requests
 import finnhub
 from functools import wraps
 from datetime import datetime, timezone
-from etl_utils.etl_config import FINNHUB_CONFIG, USER_CUSTOM
+from etl_utils.etl_config import FINNHUB_CONFIG
+from stack_info import total_lock
 
 
 def limit_usage(func):
@@ -21,15 +22,16 @@ def limit_usage(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        total_lock.acquire()
         nonlocal last_use_time
         t = time.time() - last_use_time
         if t >= FINNHUB_CONFIG["API_LIMIT"]:
             last_use_time = time.time()
-            return func(*args, **kwargs)
         else:
             time.sleep(FINNHUB_CONFIG["API_LIMIT"] - t + 0.1)
             last_use_time = time.time()
-            return func(*args, **kwargs)
+        total_lock.release()
+        return func(*args, **kwargs)
 
     return wrapper
 
@@ -72,9 +74,11 @@ def extract_candles(symbol, dt_start, dt_end, resolution='D'):
         res = finnhub_client.stock_candles(symbol, resolution,
                                            convert_datetime(dt_start),
                                            convert_datetime(dt_end))
+        # print('api called time{}'.format(datetime.today().strftime("%H:%M:%S")))
     except Exception as e:
         print('Sorry, when extract {0} candles, because of {1}, '
               'your request cannot be finished.'.format(symbol, e.__class__))
+        total_lock.release()
         return pd.DataFrame()
     else:
         if res['s'] == 'no_data':

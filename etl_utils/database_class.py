@@ -76,9 +76,9 @@ class RemoteDatabase:
                                        Column('open_price', Float(5)),
                                        Column('status', String(255)),
                                        Column('timestamp', DateTime(timezone=True),
-                                              default=datetime.utcnow, primary_key=True),
+                                              default=datetime.utcnow),
                                        Column('volume', BigInteger()),
-                                       Column('symbol', String(255), primary_key=True))
+                                       Column('symbol', String(255)))
         elif self.tb_name == RDS_CONFIG['SPLIT_TABLE']:
             self.current_table = Table(self.tb_name, self.metadata,
                                        Column('symbol', String(255), primary_key=True),

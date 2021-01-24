@@ -8,7 +8,6 @@ More tutorial please refer to 'README.md'
 
 import pandas as pd
 from datetime import datetime, timezone, timedelta
-
 from stack_info import STACK_NO_DATA, check_path
 from etl_utils.database_class import RemoteDatabase
 from etl_utils.finnhub_functions import extract_candles, extract_splits, extract_intraday
@@ -60,9 +59,13 @@ def etl_compare(symbol, db_table, db_vol, last_time, current_time):
     else:
         api_vol = api_vol.iloc[0]
     # Check if the volumes matched:
-    if abs((api_vol-db_vol)/db_vol) <= USER_CUSTOM["T_LEVEL"] or \
+    if db_vol != 0:
+        diff_in_level = abs((api_vol - db_vol) / db_vol)
+    else:
+        diff_in_level = 1
+    if diff_in_level <= USER_CUSTOM["T_LEVEL"] or \
             api_vol == db_vol or \
-            abs(api_vol-db_vol) < USER_CUSTOM["T_NUMBER"]:
+            abs(api_vol - db_vol) < USER_CUSTOM["T_NUMBER"]:
         ext_df = ext_df[ext_df.timestamp != last_time]
         if not ext_df.empty:
             db_table.update_dataframe(ext_df)  # Matched, upload the rest data
