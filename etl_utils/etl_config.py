@@ -1,6 +1,8 @@
+"""
+This script is to set user configurations.
+"""
 import os
 from os.path import join, dirname
-from typing import Optional, Dict
 
 from dateutil import tz
 from dotenv import load_dotenv
@@ -29,7 +31,7 @@ RDS_CONFIG = {
 FINNHUB_CONFIG = {
     "API_KEY": os.getenv("FINNHUB_API_KEY"),
     # ----- CUSTOM PART -----
-    "API_LIMIT": 1.2,  # control how long time that the API can be used again.
+    "API_LIMIT": 1.25,  # control how long time that the API can be used again.
     "INTRADAY_LIMIT": '30D'  # Finnhub limits the intraday data return period as 30 days.
 }
 

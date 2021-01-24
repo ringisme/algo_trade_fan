@@ -12,3 +12,4 @@ tmp_dataframe.csv
 
 # System:
 *__pycache__/
+*.log
