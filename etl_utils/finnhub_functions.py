@@ -130,11 +130,15 @@ def extract_splits(symbol, dt_start, dt_end):
     try:
         res = requests.get(api_url, headers=api_head)
         df = pd.DataFrame(res.json())
-        df['source'] = 'api'
-        return df
+        if not df.empty:
+            df['source'] = 'api'
+            return df
+        else:
+            return pd.DataFrame()
     except Exception as e:
-        raise Exception('Sorry, when extract {0} splits, because of {1}, '
-                        'your request cannot be finished.'.format(symbol, e.__class__))
+        print('Sorry, when extract {0} splits, because of {1}, '
+              'your request cannot be finished.'.format(symbol, e.__class__))
+        return pd.DataFrame()
 
 
 def extract_intraday(symbol, dt_start, dt_end, db_table, upload=True):
