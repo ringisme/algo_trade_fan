@@ -29,7 +29,7 @@ class RemoteDatabase:
             print('The accessing table do not exists')
             build_tb = input('input "yes" to create [{}]: '.format(self.tb_name))
             if build_tb == "yes":
-                self.create_table()
+                self._create_table()
             else:
                 raise Exception("You have to create a table before access.")
 
